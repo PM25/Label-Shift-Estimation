@@ -1,5 +1,5 @@
 from labelshift.methods import *
-from labelshift.calibration import *
+from labelshift.calibrations import *
 
 
 def get_lse_methods(lse_algs, calibrations, use_ensemble=True):
