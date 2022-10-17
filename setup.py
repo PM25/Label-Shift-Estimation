@@ -12,7 +12,7 @@ with open(path.join(here, "README.md"), encoding="utf-8") as f:
 
 setup(
     name="labelshift",
-    version="0.1.4",
+    version="0.1.5",
     license="MIT",
     description="A Pytorch-based toolbox for label shift estimation",
     long_description=long_description,

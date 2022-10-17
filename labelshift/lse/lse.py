@@ -14,24 +14,25 @@ import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 from torchvision import transforms
 
+from labelshift.lse.config import Config
 from labelshift.model import ModelTrainer
 from labelshift.get_method import get_lse_methods
-from labelshift.default_args import get_default_args
 from labelshift.datasets import get_data_loader, BasicDataset, ResampleDataset, ResampleDataset
 from labelshift.utils import net_builder, get_optimizer, get_cosine_schedule_with_warmup, labels_to_dist
 
 
 class LSE:
     def __init__(self, **kwargs):
-        self.args = get_default_args(**kwargs)
-        if Path(self.args.save_path).exists() and self.args.overwrite:
-            shutil.rmtree(self.args.save_path)
+        self.cfg = Config(**kwargs)
+        print(self.cfg)
+        if Path(self.cfg.save_path).exists() and self.cfg.overwrite:
+            shutil.rmtree(self.cfg.save_path)
 
     def set_labeled_data(self, lb_data, lb_targets, num_classes, train_transform=None, test_transform=None):
         self.lb_data = lb_data
         self.lb_targets = lb_targets
         self.num_classes = num_classes
-        self.args.num_classes = num_classes
+        self.cfg.num_classes = num_classes
         self.train_transform = train_transform if train_transform is not None else transforms.ToTensor()
         self.test_transform = test_transform if test_transform is not None else transforms.ToTensor()
 
@@ -56,7 +57,7 @@ class LSE:
             cudnn.deterministic = True
 
         cudnn.benchmark = True
-        self.args.bn_momentum = 1.0 - 0.999
+        self.cfg.bn_momentum = 1.0 - 0.999
 
         # Construct Dataset & DataLoader
         lb_dset = ResampleDataset(self.lb_data, self.lb_targets, self.num_classes, self.train_transform, self.test_transform, onehot=False)
@@ -80,39 +81,39 @@ class LSE:
         if not torch.cuda.is_available():
             raise Exception("ONLY GPU TRAINING IS SUPPORTED")
 
-        if self.args.gpu is not None:
+        if self.cfg.gpu is not None:
             warnings.warn("You have chosen a specific GPU. This will completely disable data parallelism.")
 
     def get_ensemble_logits(self, lb_dset, ulb_dset):
         _net_builder = net_builder(
-            self.args.net,
-            self.args.net_from_name,
+            self.cfg.net,
+            self.cfg.net_from_name,
             {
-                "first_stride": 2 if "stl" in self.args.dataset else 1,
-                "depth": self.args.depth,
-                "widen_factor": self.args.widen_factor,
-                "leaky_slope": self.args.leaky_slope,
-                "bn_momentum": self.args.bn_momentum,
-                "dropRate": self.args.dropout,
+                "first_stride": 2 if "stl" in self.cfg.dataset else 1,
+                "depth": self.cfg.depth,
+                "widen_factor": self.cfg.widen_factor,
+                "leaky_slope": self.cfg.leaky_slope,
+                "bn_momentum": self.cfg.bn_momentum,
+                "dropRate": self.cfg.dropout,
                 "use_embed": False,
             },
         )
 
         logits_log = {"val_logits": [], "val_targets": [], "ulb_logits": []}
 
-        for idx, train_lb_dset, val_lb_dset in lb_dset.resample(self.args.num_val_per_class, self.args.num_ensemble, seed=self.args.seed):
-            print(f"\nTraining [{idx}/{self.args.num_ensemble}] Model")
-            model = ModelTrainer(_net_builder, self.num_classes, num_eval_iter=self.args.num_eval_iter, ema_m=self.args.ema_m)
+        for idx, train_lb_dset, val_lb_dset in lb_dset.resample(self.cfg.num_val_per_class, self.cfg.num_ensemble, seed=self.cfg.seed):
+            print(f"\nTraining [{idx}/{self.cfg.num_ensemble}] Model")
+            model = ModelTrainer(_net_builder, self.num_classes, num_eval_iter=self.cfg.num_eval_iter, ema_m=self.cfg.ema_m)
             # SET Optimizer & LR Scheduler
             ## construct SGD and cosine lr scheduler
-            optimizer = get_optimizer(model.model, self.args.optim, self.args.lr, self.args.momentum, self.args.weight_decay)
-            scheduler = get_cosine_schedule_with_warmup(optimizer, self.args.num_train_iter, num_warmup_steps=self.args.num_train_iter * 0)
+            optimizer = get_optimizer(model.model, self.cfg.optim, self.cfg.lr, self.cfg.momentum, self.cfg.weight_decay)
+            scheduler = get_cosine_schedule_with_warmup(optimizer, self.cfg.num_train_iter, num_warmup_steps=self.cfg.num_train_iter * 0)
             ## set SGD and cosine lr
             model.set_optimizer(optimizer, scheduler)
 
-            if self.args.gpu is not None:
-                torch.cuda.set_device(self.args.gpu)
-                model.model = model.model.cuda(self.args.gpu)
+            if self.cfg.gpu is not None:
+                torch.cuda.set_device(self.cfg.gpu)
+                model.model = model.model.cuda(self.cfg.gpu)
             else:
                 model.model = torch.nn.DataParallel(model.model).cuda()
 
@@ -123,35 +124,35 @@ class LSE:
 
             loader_dict["train_lb"] = get_data_loader(
                 dset_dict["train_lb"],
-                self.args.batch_size,
-                data_sampler=self.args.train_sampler,
-                num_iters=self.args.num_train_iter,
-                num_workers=self.args.num_workers,
+                self.cfg.batch_size,
+                data_sampler=self.cfg.train_sampler,
+                num_iters=self.cfg.num_train_iter,
+                num_workers=self.cfg.num_workers,
             )
             loader_dict["val_lb"] = get_data_loader(
-                dset_dict["val_lb"], self.args.eval_batch_size, num_workers=self.args.num_workers, drop_last=False
+                dset_dict["val_lb"], self.cfg.eval_batch_size, num_workers=self.cfg.num_workers, drop_last=False
             )
             loader_dict["ulb"] = get_data_loader(
-                dset_dict["ulb"], self.args.eval_batch_size, num_workers=self.args.num_workers, drop_last=False
+                dset_dict["ulb"], self.cfg.eval_batch_size, num_workers=self.cfg.num_workers, drop_last=False
             )
 
             ## set DataLoader
             model.set_dataset(dset_dict)
             model.set_data_loader(loader_dict)
 
-            save_model_path = Path(self.args.save_path) / "models" / f"model_{idx}.pt"
+            save_model_path = Path(self.cfg.save_path) / "models" / f"model_{idx}.pt"
             if save_model_path.exists():
                 model.load_model(save_model_path)
             else:
                 # START TRAINING
                 trainer = model.train
-                trainer(self.args)
-                if self.args.save_model:
+                trainer(self.cfg)
+                if self.cfg.save_model:
                     model.save_model(save_model_path)
 
             if "ulb" in loader_dict:
-                raw_val_outputs, val_targets = model.get_logits(loader_dict["val_lb"], args=self.args)
-                raw_ulb_outputs, _ = model.get_logits(loader_dict["ulb"], args=self.args)
+                raw_val_outputs, val_targets = model.get_logits(loader_dict["val_lb"], args=self.cfg)
+                raw_ulb_outputs, _ = model.get_logits(loader_dict["ulb"], args=self.cfg)
                 logits_log["val_logits"].append(raw_val_outputs)
                 logits_log["val_targets"].append(val_targets)
                 logits_log["ulb_logits"].append(raw_ulb_outputs)
@@ -160,17 +161,15 @@ class LSE:
 
     def apply_lse(self, logits_log, ulb_dist):
         # apply label shift estimation and save results
-        if self.args.lse_algs is not None:
-            assert (
-                len(logits_log["ulb_logits"]) == len(logits_log["val_logits"]) == len(logits_log["val_targets"]) >= self.args.num_ensemble
-            )
-            ulb_logits = logits_log["ulb_logits"][: self.args.num_ensemble]
-            val_logits = logits_log["val_logits"][: self.args.num_ensemble]
-            val_targets = logits_log["val_targets"][: self.args.num_ensemble]
+        if self.cfg.lse_algs is not None:
+            assert len(logits_log["ulb_logits"]) == len(logits_log["val_logits"]) == len(logits_log["val_targets"]) >= self.cfg.num_ensemble
+            ulb_logits = logits_log["ulb_logits"][: self.cfg.num_ensemble]
+            val_logits = logits_log["val_logits"][: self.cfg.num_ensemble]
+            val_targets = logits_log["val_targets"][: self.cfg.num_ensemble]
 
             print("Target distribution estimations:")
             estimations = {}
-            names, estimators = get_lse_methods(self.args.lse_algs, self.args.calibrations, use_ensemble=True)
+            names, estimators = get_lse_methods(self.cfg.lse_algs, self.cfg.calibrations, use_ensemble=True)
             for name, estimator in zip(names, estimators):
                 estimator.fit(ulb_logits, val_logits, val_targets)
                 est_target_dist = estimator.estim_target_dist
@@ -179,7 +178,7 @@ class LSE:
                 with np.printoptions(precision=3, suppress=True, formatter={"float": "{: 0.3f}".format}):
                     print(f"{name}: {est_target_dist}, MSE: {mse:.5f}")
 
-            save_est_path = Path(self.args.save_path) / "estimation.json"
+            save_est_path = Path(self.cfg.save_path) / "estimation.json"
             with open(save_est_path, "w") as f:
                 json.dump(estimations, f, indent=4)
 

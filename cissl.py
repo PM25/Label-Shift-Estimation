@@ -14,9 +14,9 @@ import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 
 from labelshift.model import ModelTrainer
+from labelshift.get_method import get_lse_methods
 from labelshift.datasets import Imbalanced_Dataset, get_data_loader
 from labelshift.utils import net_builder, over_write_args_from_file, get_optimizer, get_cosine_schedule_with_warmup, labels_to_dist
-from labelshift.get_method import get_lse_methods
 
 
 def main(args):
@@ -203,7 +203,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_eval_iter", type=int, default=2 * 8, help="evaluation frequency")
     parser.add_argument("--max_labeled_per_class", type=int, default=1500, help="the maximum number of labeled data per class")
     parser.add_argument("--num_val_per_class", type=int, default=5, help="number of validations per class")
-    parser.add_argument("--max_unlabeled_per_class", type=float, default=2, help="the maximum number of unlabeled data per class")
+    parser.add_argument("--max_unlabeled_per_class", type=int, default=3000, help="the maximum number of unlabeled data per class")
     parser.add_argument("--batch_size", type=int, default=64, help="total number of batch size of labeled data")
     parser.add_argument(
         "--eval_batch_size",
