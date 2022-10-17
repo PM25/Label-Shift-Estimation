@@ -15,13 +15,13 @@ import torch.backends.cudnn as cudnn
 from torchvision import transforms
 
 from labelshift.model import ModelTrainer
+from labelshift.get_method import get_lse_methods
 from labelshift.default_args import get_default_args
 from labelshift.datasets import get_data_loader, BasicDataset, ResampleDataset, ResampleDataset
-from labelshift.get_method import get_lse_methods
 from labelshift.utils import net_builder, get_optimizer, get_cosine_schedule_with_warmup, labels_to_dist
 
 
-class TrainModels:
+class LSE:
     def __init__(self, **kwargs):
         self.args = get_default_args(**kwargs)
         if Path(self.args.save_path).exists() and self.args.overwrite:

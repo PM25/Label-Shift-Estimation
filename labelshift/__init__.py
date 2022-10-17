@@ -1,3 +1,3 @@
-from .train_models import TrainModels
+from .lse import LSE
 
-__all__ = ["TrainModels"]
+__all__ = ["LSE"]
