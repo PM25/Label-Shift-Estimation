@@ -123,11 +123,11 @@ def net_builder(net_name, from_name: bool, net_conf=None, is_remix=False):
 
     else:
         if net_name == "WideResNet":
-            import model.nets.wrn as net
+            import labelshift.model.nets.wrn as net
 
             builder = getattr(net, "build_WideResNet")()
         elif net_name == "ResNet50":
-            import model.nets.resnet50 as net
+            import labelshift.model.nets.resnet50 as net
 
             builder = getattr(net, "build_ResNet50")(is_remix)
         else:

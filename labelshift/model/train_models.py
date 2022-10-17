@@ -14,11 +14,11 @@ import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 from torchvision import transforms
 
-from model import ModelTrainer
-from model.default_args import get_default_args
-from get_method import get_lse_methods
-from datasets import get_data_loader, BasicDataset, ResampleDataset, ResampleDataset
-from utils import net_builder, get_optimizer, get_cosine_schedule_with_warmup, labels_to_dist
+from labelshift.model import ModelTrainer
+from labelshift.model.default_args import get_default_args
+from labelshift.datasets import get_data_loader, BasicDataset, ResampleDataset, ResampleDataset
+from labelshift.get_method import get_lse_methods
+from labelshift.utils import net_builder, get_optimizer, get_cosine_schedule_with_warmup, labels_to_dist
 
 
 class TrainModels:

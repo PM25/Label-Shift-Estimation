@@ -78,7 +78,7 @@ def get_sampler_by_name(name):
     )
     try:
         if name == "RandomSampler":
-            from datasets.RandomSampler import RandomSampler
+            from labelshift.datasets.RandomSampler import RandomSampler
 
             return RandomSampler
         else:

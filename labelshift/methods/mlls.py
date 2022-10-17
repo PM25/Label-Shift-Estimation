@@ -1,6 +1,6 @@
 import numpy as np
 
-from utils import to_one_hot, softmax, to_hard_labels
+from labelshift.utils import to_one_hot, softmax, to_hard_labels
 
 from .base import BaseEstimator
 

@@ -1,7 +1,7 @@
 from scipy.optimize import minimize
 from sklearn.metrics import log_loss
 
-from utils import softmax
+from labelshift.utils import softmax
 
 from .base import BaseCalibrator
 

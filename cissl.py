@@ -13,10 +13,10 @@ import torch
 import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 
-from model import ModelTrainer
-from datasets import Imbalanced_Dataset, get_data_loader
-from utils import net_builder, over_write_args_from_file, get_optimizer, get_cosine_schedule_with_warmup, labels_to_dist
-from get_method import get_lse_methods
+from labelshift.model import ModelTrainer
+from labelshift.datasets import Imbalanced_Dataset, get_data_loader
+from labelshift.utils import net_builder, over_write_args_from_file, get_optimizer, get_cosine_schedule_with_warmup, labels_to_dist
+from labelshift.get_method import get_lse_methods
 
 
 def main(args):
