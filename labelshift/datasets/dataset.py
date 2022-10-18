@@ -74,9 +74,11 @@ class ResampleDataset(BasicDataset):
         self.train_transform = train_transform
         self.test_transform = test_transform
 
-    def resample(self, num_val_per_class, num_splits, replace=False, seed=0):
-        state = np.random.get_state()
-        np.random.seed(seed)
+    def resample(self, num_val_per_class, num_splits, replace=False, seed=None):        
+        state = None
+        if seed is not None:
+            state = np.random.get_state()
+            np.random.seed(seed)
 
         n_idxes = []
         for _ in range(num_splits):
@@ -92,7 +94,8 @@ class ResampleDataset(BasicDataset):
             assert not np.isin(val_idxes, train_idxes).any()  # check no overlap
             n_idxes.append((train_idxes, val_idxes))
 
-        np.random.set_state(state)
+        if state is not None:
+            np.random.set_state(state)
 
         # split to training and validation dataset
         for idx, (train_idxes, val_idxes) in enumerate(n_idxes):

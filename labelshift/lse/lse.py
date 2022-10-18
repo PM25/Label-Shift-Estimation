@@ -33,7 +33,7 @@ class LSE:
         if Path(self.cfg.save_path).exists() and self.cfg.overwrite:
             shutil.rmtree(self.cfg.save_path)
 
-    def train_base_models(self, lb_data, lb_targets, num_classes=None, train_transform=None, test_transform=None):
+    def train_base_models(self, lb_data, lb_targets, num_classes=None, train_transform=None, test_transform=None, seed=None):
         self.pre_check()
 
         if num_classes is not None:
@@ -47,7 +47,7 @@ class LSE:
         np_random_state = np.random.get_state()
         torch_random_state = torch.random.get_rng_state()
 
-        if self.cfg.seed is not None:
+        if seed is not None:
             warnings.warn(
                 "You have chosen to seed training. "
                 "This will turn on the CUDNN deterministic setting, "
@@ -55,15 +55,12 @@ class LSE:
                 "You may see unexpected behavior when restarting "
                 "from checkpoints.\n"
             )
-            random.seed(self.cfg.seed)
-            torch.manual_seed(self.cfg.seed)
-            np.random.seed(self.cfg.seed)
+            random.seed(seed)
+            torch.manual_seed(seed)
+            np.random.seed(seed)
             cudnn.deterministic = True
 
         cudnn.benchmark = True
-
-        # Construct Dataset & DataLoader
-        lb_dset = ResampleDataset(lb_data, lb_targets, self.cfg.num_classes, train_transform, test_transform, onehot=False)
 
         _net_builder = net_builder(
             self.cfg.net,
@@ -80,7 +77,10 @@ class LSE:
         )
         print()
 
-        for idx, train_lb_dset, val_lb_dset in lb_dset.resample(self.cfg.num_val_per_class, self.cfg.num_ensemble, seed=self.cfg.seed):
+        # Construct Dataset & DataLoader
+        lb_dset = ResampleDataset(lb_data, lb_targets, self.cfg.num_classes, train_transform, test_transform, onehot=False)
+
+        for idx, train_lb_dset, val_lb_dset in lb_dset.resample(self.cfg.num_val_per_class, self.cfg.num_ensemble):
             print(f"Training [{idx}/{self.cfg.num_ensemble}] Model")
             model = ModelTrainer(_net_builder, self.cfg.num_classes, num_eval_iter=self.cfg.num_eval_iter, ema_m=self.cfg.ema_m)
             # SET Optimizer & LR Scheduler
@@ -139,6 +139,7 @@ class LSE:
         random.setstate(random_state)
         np.random.set_state(np_random_state)
         torch.random.set_rng_state(torch_random_state)
+
         logging.warning("Training is FINISHED\n")
 
     def pre_check(self):
@@ -187,7 +188,7 @@ class LSE:
             with open(save_est_path, "w") as f:
                 json.dump(estimations, f, indent=4)
             if verbose:
-                print(f"\nEstimations Saved Successfully: {save_est_path}")
+                print(f"\nestimations Saved Successfully: {save_est_path}")
 
         return estimations
 

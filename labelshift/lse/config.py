@@ -31,7 +31,6 @@ class Config:
     train_sampler: str = "RandomSampler"
     num_classes: int = 0
     num_workers: int = 1
-    seed: int = 0
     gpu: int = 0
     lse_algs: list = field(default_factory=lambda: ["MLLS"])
     calibrations: list = field(default_factory=lambda: ["BCTS"])
