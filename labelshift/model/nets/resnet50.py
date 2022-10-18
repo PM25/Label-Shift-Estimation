@@ -228,5 +228,8 @@ class ResNet50(nn.Module):
 
 
 class build_ResNet50:
+    def __str__(self):
+        return "Build_ResNet50"
+    
     def build(self, num_classes):
         return ResNet50(n_class=num_classes)

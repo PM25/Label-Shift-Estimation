@@ -126,6 +126,9 @@ class build_WideResNet:
         self.leaky_slope = leaky_slope
         self.use_embed = use_embed
 
+    def __str__(self):
+        return "Build_WideResNet"
+
     def build(self, num_classes):
         return WideResNet(
             first_stride=self.first_stride,

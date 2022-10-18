@@ -18,7 +18,7 @@ class Config:
     lr: float = 0.03
     momentum: float = 0.9
     weight_decay: float = 0.0005
-    bn_momentum: float = 1.0 - 0.999
+    bn_momentum: float = 0.001
     amp: bool = False
     clip: float = 0
     net: str = "WideResNet"

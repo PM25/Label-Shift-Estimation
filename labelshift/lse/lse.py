@@ -187,7 +187,7 @@ class LSE:
             with open(save_est_path, "w") as f:
                 json.dump(estimations, f, indent=4)
             if verbose:
-                logging.warning(f"Estimation Saved Successfully: {save_est_path}")
+                print(f"\nEstimations Saved Successfully: {save_est_path}")
 
         return estimations
 

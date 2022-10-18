@@ -174,6 +174,9 @@ def get_optimizer(net, optim_name="SGD", lr=0.1, momentum=0.9, weight_decay=0.0,
         optimizer = torch.optim.AdamW(per_param_args, lr=lr, weight_decay=weight_decay)
     elif optim_name == "Adam":
         optimizer = torch.optim.Adam(per_param_args, lr=lr)
+    else:
+        raise RuntimeError(f"optimizer: {optim_name} is not provided.")
+    
     return optimizer
 
 
