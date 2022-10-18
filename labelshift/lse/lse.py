@@ -107,6 +107,7 @@ class LSE:
                 data_sampler=self.cfg.train_sampler,
                 num_iters=self.cfg.num_train_iter,
                 num_workers=self.cfg.num_workers,
+                replacement=False,
             )
             loader_dict["val_lb"] = get_data_loader(
                 dset_dict["val_lb"], self.cfg.eval_batch_size, num_workers=self.cfg.num_workers, drop_last=False

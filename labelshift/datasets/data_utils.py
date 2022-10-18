@@ -77,12 +77,8 @@ def get_sampler_by_name(name):
         name for name in torch.utils.data.sampler.__dict__ if not name.startswith("_") and callable(sampler.__dict__[name])
     )
     try:
-        if name == "RandomSampler":
-            from labelshift.datasets.RandomSampler import RandomSampler
-
-            return RandomSampler
-        else:
-            return getattr(torch.utils.data.sampler, name)
+        return getattr(torch.utils.data.sampler, name)
+    
     except Exception as e:
         print(repr(e))
         print("[!] select sampler in:\t", sampler_name_list)
