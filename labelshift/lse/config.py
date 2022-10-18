@@ -8,9 +8,7 @@ class Config:
     overwrite: bool = True
     num_train_iter: int = 16000
     num_eval_iter: int = 1600
-    max_labeled_per_class: int = 1500
     num_val_per_class: int = 5
-    max_unlabeled_per_class: int = 3000
     batch_size: int = 64
     eval_batch_size: int = 1024
     ema_m: float = 0.999
@@ -20,6 +18,7 @@ class Config:
     lr: float = 0.03
     momentum: float = 0.9
     weight_decay: float = 0.0005
+    bn_momentum: float = 1.0 - 0.999
     amp: bool = False
     clip: float = 0
     net: str = "WideResNet"
@@ -30,6 +29,7 @@ class Config:
     dropout: float = 0.0
     dataset: str = "custom"
     train_sampler: str = "RandomSampler"
+    num_classes: int = 0
     num_workers: int = 1
     seed: int = 0
     gpu: int = 0

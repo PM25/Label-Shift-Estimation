@@ -12,7 +12,7 @@ with open(path.join(here, "README.md"), encoding="utf-8") as f:
 
 setup(
     name="labelshift",
-    version="0.1.5",
+    version="0.1.12",
     license="MIT",
     description="A Pytorch-based toolbox for label shift estimation",
     long_description=long_description,
@@ -22,7 +22,7 @@ setup(
     author_email="pyhuang97@gmail.com",
     # Note that this is a string of words separated by whitespace, not a list.
     keywords="pytorch label-shift-estimation",
-    packages=find_packages(exclude=["data", "configs"]),
+    packages=find_packages(exclude=["data", "configs", "saved_models"]),
     include_package_data=True,
     install_requires=["torch >= 1.8", "torchvision", "transformers", "cvxpy"],
     python_requires=">=3.7",

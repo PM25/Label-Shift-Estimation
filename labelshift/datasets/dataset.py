@@ -46,8 +46,8 @@ class BasicDataset(Dataset):
             img = self.transform(img)
 
         if self.is_ulb:
-            # return img, -1
-            return img, target
+            # return img, target
+            return img, -1
         else:
             return img, target
 

@@ -66,6 +66,12 @@ def labels_to_dist(targets, num_classes, to_prob=True):
     return ulb_dist
 
 
+def over_write_args_from_dict(args, dic):
+    for k, v in dic.items():
+        setattr(args, k, v)
+    return args
+
+
 def over_write_args_from_file(args, yml):
     if yml == "":
         return
@@ -75,11 +81,11 @@ def over_write_args_from_file(args, yml):
             setattr(args, k, dic[k])
 
 
-def setattr_cls_from_kwargs(cls, kwargs):
+def setattr_cls_from_kwargs(cls, kwargs, verbose=True):
     # if default values are in the cls,
     # overlap the value by kwargs
     for key in kwargs.keys():
-        if hasattr(cls, key):
+        if hasattr(cls, key) and verbose:
             print(f"{key} in {cls} is overlapped by kwargs: {getattr(cls, key)} -> {kwargs[key]}")
         setattr(cls, key, kwargs[key])
 
@@ -97,7 +103,7 @@ def test_setattr_cls_from_kwargs():
         print(f"{key}:\t {getattr(test_cls, key)}")
 
 
-def net_builder(net_name, from_name: bool, net_conf=None, is_remix=False):
+def net_builder(net_name, from_name: bool, net_conf=None, is_remix=False, verbose=True):
     """
     return **class** of backbone network (not instance).
     Args
@@ -134,7 +140,8 @@ def net_builder(net_name, from_name: bool, net_conf=None, is_remix=False):
             assert Exception("Not Implemented Error")
 
         if net_name != "ResNet50":
-            setattr_cls_from_kwargs(builder, net_conf)
+            setattr_cls_from_kwargs(builder, net_conf, verbose=verbose)
+        
         return builder.build
 
 
@@ -144,7 +151,7 @@ def test_net_builder(net_name, from_name, net_conf=None):
     print(builder)
 
 
-def get_optimizer(net, optim_name="SGD", lr=0.1, momentum=0.9, weight_decay=0, nesterov=True, bn_wd_skip=True):
+def get_optimizer(net, optim_name="SGD", lr=0.1, momentum=0.9, weight_decay=0.0, nesterov=True, bn_wd_skip=True):
     """
     return optimizer (name) in torch.optim.
     If bn_wd_skip, the optimizer does not apply
