@@ -1,32 +1,10 @@
 import numpy as np
 
 import torchvision
-from torchvision import transforms
 
 from .dataset import BasicDataset, ResampleDataset, ResampleDataset
 from .data_utils import gen_imb_list, sample_data
-
-
-mean, std = {}, {}
-mean["cifar10"] = [x / 255 for x in [125.3, 123.0, 113.9]]
-mean["cifar100"] = [x / 255 for x in [129.3, 124.1, 112.4]]
-
-std["cifar10"] = [x / 255 for x in [63.0, 62.1, 66.7]]
-std["cifar100"] = [x / 255 for x in [68.2, 65.4, 70.4]]
-
-
-def get_transform(mean, std, crop_size, train=True):
-    if train:
-        return transforms.Compose(
-            [
-                transforms.RandomHorizontalFlip(),
-                transforms.RandomCrop(crop_size, padding=4, padding_mode="reflect"),
-                transforms.ToTensor(),
-                transforms.Normalize(mean, std),
-            ]
-        )
-    else:
-        return transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean, std)])
+from .transform import get_transform_by_name
 
 
 class Imbalanced_Dataset:
@@ -36,7 +14,7 @@ class Imbalanced_Dataset:
     and return BasicDataset: torch.utils.data.Dataset (see datasets.dataset.py)
     """
 
-    def __init__(self, name="cifar10", num_classes=10, data_dir="./data"):
+    def __init__(self, name="cifar10", train=True, num_classes=10, data_dir="./data"):
         """
         Args
             name: name of dataset in torchvision.datasets (cifar10, cifar100, svhn, stl10)
@@ -45,12 +23,11 @@ class Imbalanced_Dataset:
             data_dir: path of directory, where data is downloaed or stored.
         """
         self.name = name
-        self.train = True
+        self.train = train
         self.num_classes = num_classes
         self.data_dir = data_dir
-        self.crop_size = 32
-        self.train_transform = get_transform(mean[name], std[name], self.crop_size, True)
-        self.test_transform = get_transform(mean[name], std[name], self.crop_size, False)
+        self.train_transform = get_transform_by_name(name, train=True)
+        self.test_transform = get_transform_by_name(name, train=False)
 
     def get_data(self):
         """
@@ -72,6 +49,7 @@ class Imbalanced_Dataset:
         ulb_imb_ratio,
         imb_type,
         onehot=False,
+        dset=True,
         seed=0,
     ):
         """
@@ -84,10 +62,14 @@ class Imbalanced_Dataset:
             ulb_imb_ratio: imbalance ratio of unlabeled data.
             imb_type: type of imbalance data.
             onehot: If True, the target is converted into onehot vector.
+            dset: If True, return BasicDataset else return raw data.
             seed: Get deterministic results of labeled and unlabeld data.
 
         Returns:
-            ResampleDataset (for labeled data), BasicDataset (for unlabeld data)
+        if dset = True:
+            BasicDataset (for labeled data), BasicDataset (for unlabeld data)
+        else:
+            labeled (data, targets), unlabeled (data, None)
         """
         data, targets = self.get_data()
 
@@ -112,7 +94,10 @@ class Imbalanced_Dataset:
 
         np.random.set_state(state)
 
-        lb_dset = ResampleDataset(lb_data, lb_targets, self.num_classes, self.train_transform, self.test_transform, onehot=onehot)
-        ulb_dset = BasicDataset(ulb_data, ulb_targets, self.num_classes, self.test_transform, is_ulb=True, onehot=onehot)
+        if dset:
+            lb_dset = ResampleDataset(lb_data, lb_targets, self.num_classes, self.train_transform, self.test_transform, onehot=onehot, seed=seed)
+            ulb_dset = BasicDataset(ulb_data, ulb_targets, self.num_classes, self.test_transform, is_ulb=True, onehot=onehot)
 
-        return lb_dset, ulb_dset
+            return lb_dset, ulb_dset
+        else:
+            return (lb_data, lb_targets), (ulb_data, None)
