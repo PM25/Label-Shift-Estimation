@@ -60,7 +60,7 @@ class ResampleDataset(BasicDataset):
     Random resampling subsets of a dataset.
     """
 
-    def __init__(self, data, targets=None, num_classes=None, train_transform=None, test_transform=None, onehot=False):
+    def __init__(self, data, targets=None, num_classes=None, train_transform=None, test_transform=None, onehot=False, seed=0):
         """
         Args
             data: x_data
@@ -73,12 +73,12 @@ class ResampleDataset(BasicDataset):
         super().__init__(data, targets, num_classes, None, onehot)
         self.train_transform = train_transform
         self.test_transform = test_transform
+        self.seed = seed
+        assert self.seed is not None
 
-    def resample(self, num_val_per_class, num_splits, replace=False, seed=None):        
-        state = None
-        if seed is not None:
-            state = np.random.get_state()
-            np.random.seed(seed)
+    def resample(self, num_val_per_class, num_splits, replace=False):
+        state = np.random.get_state()
+        np.random.seed(self.seed)
 
         n_idxes = []
         for _ in range(num_splits):
@@ -94,8 +94,7 @@ class ResampleDataset(BasicDataset):
             assert not np.isin(val_idxes, train_idxes).any()  # check no overlap
             n_idxes.append((train_idxes, val_idxes))
 
-        if state is not None:
-            np.random.set_state(state)
+        np.random.set_state(state)
 
         # split to training and validation dataset
         for idx, (train_idxes, val_idxes) in enumerate(n_idxes):

@@ -78,7 +78,7 @@ class LSE:
         print()
 
         # Construct Dataset & DataLoader
-        lb_dset = ResampleDataset(lb_data, lb_targets, self.cfg.num_classes, train_transform, test_transform, onehot=False)
+        lb_dset = ResampleDataset(lb_data, lb_targets, self.cfg.num_classes, train_transform, test_transform, onehot=False, seed=self.cfg.seed)
 
         for idx, train_lb_dset, val_lb_dset in lb_dset.resample(self.cfg.num_val_per_class, self.cfg.num_ensemble):
             print(f"Training [{idx}/{self.cfg.num_ensemble}] Model")

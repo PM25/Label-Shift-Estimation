@@ -36,6 +36,7 @@ def test_lse():
         lse_algs=lse_algs,
         calibrations=calibrations,
         gpu=None,
+        seed=0,
     )
     lse.train_base_models(fake_train_data, fake_train_labels, num_classes, train_transform, test_transform, seed=0)
     estimations = lse.estimate(fake_test_data, test_transform=test_transform, save_name="test", verbose=True)
