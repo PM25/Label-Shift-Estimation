@@ -83,9 +83,6 @@ if __name__ == "__main__":
     """
     parser.add_argument("--num_train_iter", type=int, default=2**15, help="total number of training iterations")
     parser.add_argument("--num_eval_iter", type=int, default=2 * 8, help="evaluation frequency")
-    parser.add_argument("--max_labeled_per_class", type=int, default=1500, help="the maximum number of labeled data per class")
-    parser.add_argument("--num_val_per_class", type=int, default=5, help="number of validations per class")
-    parser.add_argument("--max_unlabeled_per_class", type=int, default=3000, help="the maximum number of unlabeled data per class")
     parser.add_argument("--batch_size", type=int, default=64, help="total number of batch size of labeled data")
     parser.add_argument(
         "--eval_batch_size",
@@ -127,12 +124,9 @@ if __name__ == "__main__":
     parser.add_argument("--train_sampler", type=str, default="RandomSampler")
     parser.add_argument("--num_classes", type=int, default=10)
     parser.add_argument("--num_workers", type=int, default=1)
-
-    """
-    GPU Configurations
-    """
-    parser.add_argument("--seed", default=0, type=int, help="seed for initializing training. ")
-    parser.add_argument("--gpu", default=None, type=int, help="GPU id to use.")
+    parser.add_argument("--max_labeled_per_class", type=int, default=1500, help="the maximum number of labeled data per class")
+    parser.add_argument("--max_unlabeled_per_class", type=int, default=3000, help="the maximum number of unlabeled data per class")
+    parser.add_argument("--num_val_per_class", type=int, default=5, help="number of validations per class")
 
     """
     Imbalanced Configurations
@@ -147,6 +141,12 @@ if __name__ == "__main__":
     parser.add_argument("--lse_algs", type=json.loads, default=None, help="list of label shift estimation methods to use")
     parser.add_argument("--calibrations", type=json.loads, default=None, help="list of calibration methods to use")
     parser.add_argument("--num_ensemble", type=int, default=10, help="number of subsets for training ensemble models")
+
+    """
+    GPU & Random Seed Configurations
+    """
+    parser.add_argument("--seed", default=0, type=int, help="seed for initializing training. ")
+    parser.add_argument("--gpu", default=None, type=int, help="GPU id to use.")
 
     # config file
     parser.add_argument("--c", type=str, default="")

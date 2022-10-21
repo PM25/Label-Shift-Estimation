@@ -6,9 +6,6 @@ overwrite: False
 # training configuration
 num_train_iter: 16000
 num_eval_iter: 1600
-max_labeled_per_class: 1500
-max_unlabeled_per_class: 3000
-num_val_per_class: 5
 batch_size: 64
 eval_batch_size: 1024
 ema_m: 0.999
@@ -36,15 +33,20 @@ dataset: cifar10
 train_sampler: RandomSampler
 num_classes: 10
 num_workers: 1
-seed: 0
-gpu: 0
+max_labeled_per_class: 1500
+max_unlabeled_per_class: 3000
+num_val_per_class: 5
 
 # imbalanced settings
+imb_type: long
 lb_imb_ratio: 100
 ulb_imb_ratio: 1
-imb_type: long
 
 # label shift estimation
 lse_algs: [BBSE, RLLS, MLLS]
 calibrations: [None, BCTS]
 num_ensemble: 10
+
+# GPU & seed configurations
+seed: 0
+gpu: 0
