@@ -49,8 +49,6 @@ class Dirichlet_Dataset:
         num_unlabeled,
         lb_alpha,
         ulb_alpha,
-        onehot=False,
-        dset=True,
         seed=0,
     ):
         """
@@ -62,14 +60,9 @@ class Dirichlet_Dataset:
             lb_img_ratio: imbalance ratio of labeled data.
             ulb_imb_ratio: imbalance ratio of unlabeled data.
             imb_type: type of imbalance data.
-            onehot: If True, the target is converted into onehot vector.
-            dset: If True, return BasicDataset else return raw data.
             seed: Get deterministic results of labeled and unlabeld data.
 
         Returns:
-        if dset = True:
-            BasicDataset (for labeled data), BasicDataset (for unlabeld data)
-        else:
             labeled (data, targets), unlabeled (data, None)
         """
         train_data, train_targets, test_data, test_targets = self.get_data()
@@ -93,10 +86,4 @@ class Dirichlet_Dataset:
 
         np.random.set_state(state)
 
-        if dset:
-            lb_dset = ResampleDataset(lb_data, lb_targets, self.num_classes, self.train_transform, self.test_transform, onehot=onehot)
-            ulb_dset = BasicDataset(ulb_data, ulb_targets, self.num_classes, self.test_transform, is_ulb=True, onehot=onehot)
-
-            return lb_dset, ulb_dset
-        else:
-            return (lb_data, lb_targets), (ulb_data, None)
+        return (lb_data, lb_targets), (ulb_data, ulb_targets)

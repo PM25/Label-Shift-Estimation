@@ -1,36 +1,19 @@
 # import needed library
 import json
-import copy
 import random
-import shutil
-import logging
 import warnings
 import numpy as np
-from pathlib import Path
-from sklearn.metrics import mean_squared_error
 
 import torch
 import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 
-from labelshift.model import ModelTrainer
-from labelshift.get_method import get_lse_methods
-from labelshift.datasets import Imbalanced_Dataset, get_data_loader
-from labelshift.utils import net_builder, over_write_args_from_file, get_optimizer, get_cosine_schedule_with_warmup, labels_to_dist
+from labelshift.lse import LSE
+from labelshift.utils import over_write_args_from_file, labels_to_dist
+from labelshift.datasets import Imbalanced_Dataset, get_transform_by_name
 
 
 def main(args):
-    global best_acc1
-
-    if not torch.cuda.is_available():
-        raise Exception("ONLY GPU TRAINING IS SUPPORTED")
-
-    if args.gpu is not None:
-        warnings.warn("You have chosen a specific GPU. This will completely disable data parallelism.")
-
-    if Path(args.save_path).exists() and args.overwrite:
-        shutil.rmtree(args.save_path)
-
     if args.seed is not None:
         warnings.warn(
             "You have chosen to seed training. "
@@ -44,12 +27,13 @@ def main(args):
         np.random.seed(args.seed)
         cudnn.deterministic = True
 
-    cudnn.benchmark = True
-    args.bn_momentum = 1.0 - 0.999
+    if args.gpu is not None:
+        warnings.warn("You have chosen a specific GPU. This will completely disable data parallelism.")
+    print()
 
     # Construct Dataset & DataLoader
-    dset = Imbalanced_Dataset(name=args.dataset, num_classes=args.num_classes, data_dir=args.data_dir)
-    lb_dset, ulb_dset = dset.get_lb_ulb_dset(
+    dset = Imbalanced_Dataset(name=args.dataset, train=True, num_classes=args.num_classes, data_dir=args.data_dir)
+    lb, ulb = dset.get_lb_ulb_dset(
         args.max_labeled_per_class,
         args.max_unlabeled_per_class,
         args.lb_imb_ratio,
@@ -57,120 +41,18 @@ def main(args):
         args.imb_type,
         seed=args.seed,
     )
-    ulb_dist = labels_to_dist(ulb_dset.targets, args.num_classes)
-    with np.printoptions(precision=3, suppress=True, formatter={"float": "{: 0.3f}".format}):
-        print(f"Target distribution: {ulb_dist}\n")
 
-    n_logits = 0
-    save_logits_path = Path(args.save_path) / f"u{args.ulb_imb_ratio}" / f"logits.pt"
+    lb_data, lb_targets = lb
+    ulb_data, ulb_targets = ulb
 
-    if save_logits_path.exists():
-        logits_log = torch.load(save_logits_path)
-        n_logits = len(logits_log["ulb_logits"])
+    ulb_dist = labels_to_dist(ulb_targets, args.num_classes)
 
-    if n_logits < args.num_ensemble:
-        _net_builder = net_builder(
-            args.net,
-            args.net_from_name,
-            {
-                "first_stride": 2 if "stl" in args.dataset else 1,
-                "depth": args.depth,
-                "widen_factor": args.widen_factor,
-                "leaky_slope": args.leaky_slope,
-                "bn_momentum": args.bn_momentum,
-                "dropRate": args.dropout,
-                "use_embed": False,
-            },
-        )
-        logits_log = get_ensemble_logits(args, _net_builder, lb_dset, ulb_dset)
+    train_transform = get_transform_by_name(args.dataset, train=True)
+    test_transform = get_transform_by_name(args.dataset, train=False)
 
-        save_logits_path.parent.mkdir(parents=True, exist_ok=True)
-        torch.save(logits_log, save_logits_path)
-        logging.warning(f"Logits Saved Successfully: {save_logits_path}")
-
-    # apply label shift estimation and save results
-    if args.lse_algs is not None:
-        assert len(logits_log["ulb_logits"]) == len(logits_log["val_logits"]) == len(logits_log["val_targets"]) >= args.num_ensemble
-        ulb_logits = logits_log["ulb_logits"][: args.num_ensemble]
-        val_logits = logits_log["val_logits"][: args.num_ensemble]
-        val_targets = logits_log["val_targets"][: args.num_ensemble]
-
-        print("Target distribution estimations:")
-        estimations = {}
-        names, estimators = get_lse_methods(args.lse_algs, args.calibrations, use_ensemble=True)
-        for name, estimator in zip(names, estimators):
-            estimator.fit(ulb_logits, val_logits, val_targets)
-            est_target_dist = estimator.estim_target_dist
-            mse = mean_squared_error(ulb_dist, est_target_dist)
-            estimations[name] = {"estimation": est_target_dist.tolist(), "mse": mse}
-            with np.printoptions(precision=3, suppress=True, formatter={"float": "{: 0.3f}".format}):
-                print(f"{name}: {est_target_dist}, MSE: {mse:.5f}")
-
-        save_est_path = Path(args.save_path) / f"u{args.ulb_imb_ratio}" / "estimation.json"
-        with open(save_est_path, "w") as f:
-            json.dump(estimations, f, indent=4)
-
-        logging.warning(f"Estimation Saved Successfully: {save_est_path}")
-
-    logging.warning("Training is FINISHED")
-
-
-def get_ensemble_logits(args, _net_builder, lb_dset, ulb_dset):
-    logits_log = {"val_logits": [], "val_targets": [], "ulb_logits": []}
-
-    for idx, train_lb_dset, val_lb_dset in lb_dset.resample(args.num_val_per_class, args.num_ensemble, seed=args.seed):
-        print(f"\nTraining [{idx}/{args.num_ensemble}] Model")
-        model = ModelTrainer(_net_builder, args.num_classes, num_eval_iter=args.num_eval_iter, ema_m=args.ema_m)
-        # SET Optimizer & LR Scheduler
-        ## construct SGD and cosine lr scheduler
-        optimizer = get_optimizer(model.model, args.optim, args.lr, args.momentum, args.weight_decay)
-        scheduler = get_cosine_schedule_with_warmup(optimizer, args.num_train_iter, num_warmup_steps=args.num_train_iter * 0)
-        ## set SGD and cosine lr
-        model.set_optimizer(optimizer, scheduler)
-
-        if args.gpu is not None:
-            torch.cuda.set_device(args.gpu)
-            model.model = model.model.cuda(args.gpu)
-        else:
-            model.model = torch.nn.DataParallel(model.model).cuda()
-
-        model.ema_model = copy.deepcopy(model.model)
-
-        loader_dict = {}
-        dset_dict = {"train_lb": train_lb_dset, "val_lb": val_lb_dset, "ulb": ulb_dset}
-
-        loader_dict["train_lb"] = get_data_loader(
-            dset_dict["train_lb"],
-            args.batch_size,
-            data_sampler=args.train_sampler,
-            num_iters=args.num_train_iter,
-            num_workers=args.num_workers,
-        )
-        loader_dict["val_lb"] = get_data_loader(dset_dict["val_lb"], args.eval_batch_size, num_workers=args.num_workers, drop_last=False)
-        loader_dict["ulb"] = get_data_loader(dset_dict["ulb"], args.eval_batch_size, num_workers=args.num_workers, drop_last=False)
-
-        ## set DataLoader
-        model.set_dataset(dset_dict)
-        model.set_data_loader(loader_dict)
-
-        save_model_path = Path(args.save_path) / "models" / f"model_{idx}.pt"
-        if save_model_path.exists():
-            model.load_model(save_model_path)
-        else:
-            # START TRAINING
-            trainer = model.train
-            trainer(args)
-            if args.save_model:
-                model.save_model(save_model_path)
-
-        if "ulb" in loader_dict:
-            raw_val_outputs, val_targets = model.get_logits(loader_dict["val_lb"], args=args)
-            raw_ulb_outputs, _ = model.get_logits(loader_dict["ulb"], args=args)
-            logits_log["val_logits"].append(raw_val_outputs)
-            logits_log["val_targets"].append(val_targets)
-            logits_log["ulb_logits"].append(raw_ulb_outputs)
-
-    return logits_log
+    estimator = LSE(args=args)
+    estimator.train_base_models(lb_data, lb_targets, args.num_classes, train_transform=train_transform, test_transform=test_transform)
+    estimator.estimate(ulb_data, ulb_dist, test_transform=test_transform, save_name=f"u{args.ulb_imb_ratio}_estimation", verbose=True)
 
 
 def str2bool(v):

@@ -149,22 +149,14 @@ class LSE:
         if self.cfg.gpu is not None:
             warnings.warn("You have chosen a specific GPU. This will completely disable data parallelism.")
 
-    def estimate(self, ulb_data, ulb_targets=None, num_classes=None, test_transform=None, save_name=None, verbose=False):
+    def estimate(self, ulb_data, ulb_dist=None, test_transform=None, save_name=None, verbose=False):
         test_transform = test_transform if test_transform is not None else transforms.ToTensor()
 
-        if num_classes is not None:
-            self.cfg.num_classes = num_classes
-        assert ulb_targets is None or self.cfg.num_classes > 0, "please provide the number of classes"
-
         # Construct Dataset & DataLoader
-        ulb_dset = BasicDataset(ulb_data, ulb_targets, self.cfg.num_classes, test_transform, is_ulb=True, onehot=False)
+        ulb_dset = BasicDataset(ulb_data, None, self.cfg.num_classes, test_transform, is_ulb=True, onehot=False)
 
         logits = self.get_logits(ulb_dset)
         estimations = self.apply_lse(logits)
-
-        ulb_dist = None
-        if ulb_targets is not None:
-            ulb_dist = labels_to_dist(ulb_targets, self.cfg.num_classes)
 
         with np.printoptions(precision=3, suppress=True, formatter={"float": "{: 0.3f}".format}):
             if verbose:
